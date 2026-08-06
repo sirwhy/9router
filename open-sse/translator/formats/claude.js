@@ -215,6 +215,12 @@ export function prepareClaudeRequest(body, provider = null, apiKey = null, conne
     }
   }
 
+  // Keelcode: requires thinking.budget_tokens when thinking is enabled.
+  // `{"type":"enabled"}` without budget_tokens → 400 "does not match the API contract".
+  if (provider === "keelcode" && body.thinking?.type === "enabled" && !body.thinking.budget_tokens) {
+    body.thinking.budget_tokens = 8192;
+  }
+
   // 1. System: remove all cache_control, add only to last block with ttl 1h
   if (body.system && Array.isArray(body.system)) {
     body.system = body.system.map((block, i) => {
