@@ -246,6 +246,12 @@ export class DefaultExecutor extends BaseExecutor {
         if (credentials.apiKey && !headers["Authorization"]) {
           headers["Authorization"] = `Bearer ${credentials.apiKey}`;
         }
+        // Keelcode (api.keelcode.ai) rejects x-api-key header with 401.
+        // It only accepts Authorization: Bearer. Strip x-api-key for keelcode.
+        if (baseUrl.includes("api.keelcode.ai")) {
+          delete headers["x-api-key"];
+          delete headers["X-Api-Key"];
+        }
         delete headers["anthropic-dangerous-direct-browser-access"];
         delete headers["Anthropic-Dangerous-Direct-Browser-Access"];
         delete headers["x-app"];
