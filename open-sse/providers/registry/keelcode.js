@@ -1,7 +1,6 @@
 // Keelcode — hosted coding agent API (https://keelcode.ai)
 // Anthropic Messages format (/v1/messages), Bearer auth, streaming-only.
-// Token: run `keelcode login` locally, then paste accessToken from
-// ~/.keelcode/credentials.json into the 9router dashboard.
+// OAuth2 device flow (keelcode login) OR manual token paste.
 
 export default {
   id: "keelcode",
@@ -14,12 +13,13 @@ export default {
     color: "#6366F1",
     website: "https://keelcode.ai",
     notice: {
-      apiKeyUrl: "https://keelcode.ai/dashboard",
+      signupUrl: "https://keelcode.ai",
     },
-    authHint: "Run `keelcode login`, copy accessToken from ~/.keelcode/credentials.json",
+    authHint: "Run `keelcode login` locally, or use device flow below.",
   },
-  category: "apikey",
-  authModes: ["apikey"],
+  category: "oauth",
+  authModes: ["oauth", "apikey"],
+  hasOAuth: true,
   thinkingConfig: {
     options: ["auto", "none", "low", "medium", "high"],
     defaultMode: "auto",
@@ -36,7 +36,21 @@ export default {
         header: "Authorization",
         scheme: "bearer",
       },
+      oauth: {
+        header: "Authorization",
+        scheme: "bearer",
+      },
     },
+  },
+  oauth: {
+    clientId: "keelcode-cli",
+    deviceCodeUrl: "https://api.keelcode.ai/api/auth/device/code",
+    tokenUrl: "https://api.keelcode.ai/api/auth/device/token",
+    userInfoUrl: "https://api.keelcode.ai/v1/me",
+    scopes: "inference models usage",
+    // device flow uses non-standard grant_type URN
+    deviceGrantType: "urn:ietf:params:oauth:grant-type:device_code",
+    refreshLeadMs: 432000000,
   },
   models: [
     { id: "gpt-5.6-luna", name: "GPT-5.6 Luna" },
