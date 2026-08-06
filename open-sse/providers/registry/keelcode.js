@@ -48,6 +48,7 @@ export default {
     tokenUrl: "https://api.keelcode.ai/api/auth/device/token",
     userInfoUrl: "https://api.keelcode.ai/v1/me",
     scopes: "inference models usage",
+    flowType: "device_code",
     // device flow uses non-standard grant_type URN
     deviceGrantType: "urn:ietf:params:oauth:grant-type:device_code",
     refreshLeadMs: 432000000,
