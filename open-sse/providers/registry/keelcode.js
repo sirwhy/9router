@@ -25,7 +25,7 @@ export default {
     defaultMode: "auto",
   },
   transport: {
-    baseUrl: "https://api.keelcode.ai/v1/messages",
+    baseUrl: "https://keel-log.kania-cloudmail.workers.dev/v1/messages",
     format: "claude",
     forceStream: true,
     headers: {
