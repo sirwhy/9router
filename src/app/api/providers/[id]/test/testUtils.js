@@ -146,6 +146,14 @@ const OAUTH_TEST_CONFIG = {
       402: "Connected, but Grok Build credits are exhausted (spending limit). Add credits or upgrade SuperGrok.",
     },
   },
+  keelcode: {
+    // Device-flow OAuth; probe /v1/me (no inference quota consumed). Bearer only.
+    url: "https://api.keelcode.ai/v1/me",
+    method: "GET",
+    authHeader: "Authorization",
+    authPrefix: "Bearer ",
+    refreshable: false,
+  },
 };
 
 /**
