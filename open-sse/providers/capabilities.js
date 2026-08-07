@@ -152,21 +152,19 @@ export const PROVIDER_CAPABILITIES = {
     "gpt-5.6-terra-thinking-agentic": KIRO_GPT_5_6_CAPABILITIES,
     "gpt-5.6-luna-thinking-agentic": KIRO_GPT_5_6_CAPABILITIES,
   },
-  // Keelcode — rejects max_tokens above its output ceiling with 400
-  // "unsupported_capability"/"invalid_request". All models capped at 8192.
-  // NOTE: keelcode speaks Anthropic Messages format. ALL models must use an
-  // Anthropic-style thinkingFormat ("claude-budget"/"kimi") — "openai" makes
-  // 9router emit reasoning_effort which keelcode rejects with 400
-  // invalid_request.
+  // Keelcode /v1/models metadata. Keelcode accepts Anthropic Messages;
+  // keep claude-budget so the translator emits `thinking`, not OpenAI
+  // `reasoning_effort`. maxOutput mirrors upstream metadata.
   "keelcode": {
-    "kimi-k3": { reasoning: true, thinkingFormat: "claude-budget", contextWindow: 1048576, maxOutput: 8192 },
-    "kimi-k2.7-code": { reasoning: true, thinkingFormat: "claude-budget", contextWindow: 262144, maxOutput: 8192 },
-    "kimi-k2.6": { reasoning: true, thinkingFormat: "claude-budget", contextWindow: 256000, maxOutput: 8192 },
-    "deepseek-v4-pro": { reasoning: true, thinkingFormat: "claude-budget", contextWindow: 1000000, maxOutput: 8192 },
-    "deepseek-v4-flash": { reasoning: true, thinkingFormat: "claude-budget", contextWindow: 1000000, maxOutput: 8192 },
-    "gpt-5.6-luna": { reasoning: true, thinkingFormat: "claude-budget", contextWindow: 1050000, maxOutput: 8192 },
-    "gpt-5.6-terra": { reasoning: true, thinkingFormat: "claude-budget", contextWindow: 1050000, maxOutput: 8192 },
-    "gpt-5.6-sol": { reasoning: true, thinkingFormat: "claude-budget", contextWindow: 1050000, maxOutput: 8192 },
+    "kimi-k3": { reasoning: true, thinkingFormat: "claude-budget", contextWindow: 1048576, maxOutput: 16000 },
+    "kimi-k2.7-code": { reasoning: true, thinkingFormat: "claude-budget", contextWindow: 262144, maxOutput: 128000 },
+    "kimi-k2.6": { reasoning: true, thinkingFormat: "claude-budget", contextWindow: 262144, maxOutput: 128000 },
+    "deepseek-v4-pro": { reasoning: true, thinkingFormat: "claude-budget", contextWindow: 1000000, maxOutput: 128000 },
+    "deepseek-v4-flash": { reasoning: true, thinkingFormat: "claude-budget", contextWindow: 1000000, maxOutput: 128000 },
+    "gpt-5.6-luna": { reasoning: true, thinkingFormat: "claude-budget", contextWindow: 1050000, maxOutput: 128000 },
+    "gpt-5.6-terra": { reasoning: true, thinkingFormat: "claude-budget", contextWindow: 1050000, maxOutput: 128000 },
+    "gpt-5.6-sol": { reasoning: true, thinkingFormat: "claude-budget", contextWindow: 1050000, maxOutput: 128000 },
+    "glm-5.2": { reasoning: true, thinkingFormat: "claude-budget", contextWindow: 262144, maxOutput: 128000 },
   },
   // CodeBuddy.cn — authoritative per-model metadata from the gateway's model
   // config (contextWindow=maxInputTokens, maxOutput=maxOutputTokens, vision=
