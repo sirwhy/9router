@@ -207,7 +207,7 @@ export function translateSSEToOpenAI(rawSSE, sourceFormat, fallbackModel = null)
  * Handle case: provider forced streaming but client wants JSON.
  * Supports both Codex/Responses API SSE and standard Chat Completions SSE.
  */
-export async function handleForcedSSEToJson({ providerResponse, sourceFormat, provider, model, body, stream, translatedBody, finalBody, requestStartTime, connectionId, apiKey, clientRawRequest, onRequestSuccess, trackDone, appendLog, reqTag, log }) {
+export async function handleForcedSSEToJson({ providerResponse, sourceFormat, targetFormat, provider, model, body, stream, translatedBody, finalBody, requestStartTime, connectionId, apiKey, clientRawRequest, onRequestSuccess, trackDone, appendLog, reqTag, log }) {
   const contentType = providerResponse.headers.get("content-type") || "";
   const isSSE = contentType.includes("text/event-stream") || (contentType === "" && isResponsesProvider(provider));
   if (!isSSE) return null; // not handled here
@@ -299,10 +299,11 @@ export async function handleForcedSSEToJson({ providerResponse, sourceFormat, pr
   // Standard Chat Completions SSE path
   try {
     let sseText = await providerResponse.text();
-    // Upstream may emit non-OpenAI SSE (Claude/Gemini/etc.) when forceStream.
-    // Translate to OpenAI SSE first so parseSSEToOpenAIResponse() sees
-    // choices[0].delta.content / reasoning_content instead of raw provider blocks.
-    const translatedSSE = translateSSEToOpenAI(sseText, sourceFormat, model);
+    // Raw SSE is in the provider's wire format (targetFormat for Keelcode =
+    // claude). Translate it to OpenAI SSE first so parseSSEToOpenAIResponse()
+    // sees choices[0].delta.content / reasoning_content instead of raw blocks.
+    const upstreamFormat = targetFormat || sourceFormat;
+    const translatedSSE = translateSSEToOpenAI(sseText, upstreamFormat, model);
     const parsed = parseSSEToOpenAIResponse(translatedSSE, model);
     if (!parsed) return createErrorResult(HTTP_STATUS.BAD_GATEWAY, "Invalid SSE response for non-streaming request");
     if (parsed.error) {

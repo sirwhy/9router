@@ -395,7 +395,10 @@ export async function handleChatCore({ body, modelInfo, credentials, log, onCred
 
   // Provider forced streaming but client wants JSON
   if (!clientRequestedStreaming && providerRequiresStreaming) {
-    const result = await handleForcedSSEToJson({ ...sharedCtx, providerResponse, sourceFormat, trackDone, appendLog });
+    // NOTE: raw upstream SSE is in providerResponseFormat (e.g. claude for
+    // Keelcode), NOT sourceFormat (client format). Pass both so the translator
+    // can convert provider-format SSE → OpenAI chunks correctly.
+    const result = await handleForcedSSEToJson({ ...sharedCtx, providerResponse, sourceFormat, targetFormat: providerResponseFormat, trackDone, appendLog });
     if (result) { streamController.handleComplete(); return result; }
   }
 
