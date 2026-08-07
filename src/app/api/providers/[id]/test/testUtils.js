@@ -147,8 +147,9 @@ const OAUTH_TEST_CONFIG = {
     },
   },
   keelcode: {
-    // Device-flow OAuth; probe /v1/me (no inference quota consumed). Bearer only.
-    url: "https://api.keelcode.ai/v1/me",
+    // Device-flow OAuth; probe /api/v1/me (no inference quota consumed). Bearer only.
+    // NOTE: /v1/me returns 404; the web/API userinfo endpoint is /api/v1/me.
+    url: "https://api.keelcode.ai/api/v1/me",
     method: "GET",
     authHeader: "Authorization",
     authPrefix: "Bearer ",
