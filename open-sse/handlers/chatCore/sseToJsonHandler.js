@@ -87,8 +87,15 @@ export function parseSSEToOpenAIResponse(rawSSE, fallbackModel) {
     }
   }
 
-  const message = { role: "assistant", content: contentParts.join("") || (toolCallMap.size > 0 ? null : "") };
-  if (reasoningParts.length > 0) message.reasoning_content = reasoningParts.join("");
+  const rawContent = contentParts.join("");
+  const rawReasoning = reasoningParts.join("");
+  // When upstream emits only thinking/reasoning blocks (no text delta), content
+  // stays empty while reasoning_content fills up. Keelcode K2.7-K3, Kimi, and
+  // other hosted models that gate output through reasoning need this fallback.
+  // Promote reasoning_content to content so clients see usable output.
+  const fallbackContent = rawReasoning || (toolCallMap.size > 0 ? null : "");
+  const message = { role: "assistant", content: rawContent || fallbackContent };
+  if (rawReasoning) message.reasoning_content = rawReasoning;
   if (toolCallMap.size > 0) {
     message.tool_calls = [...toolCallMap.entries()].sort((a, b) => a[0] - b[0]).map(([, tc]) => tc);
   }
