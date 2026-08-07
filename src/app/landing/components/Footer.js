@@ -8,8 +8,16 @@ export default function Footer() {
           {/* Brand */}
           <div className="col-span-2 lg:col-span-2">
             <div className="flex items-center gap-3 mb-6">
-              <div className="size-6 rounded bg-[#f97815] flex items-center justify-center text-white">
-                <span className="material-symbols-outlined text-[16px]">hub</span>
+              <div className="size-6 rounded bg-white flex items-center justify-center">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" className="size-5">
+                  <path
+                    d="M14.5 16.5 24 24l-9.5 7.5C9 31.5 6 28.2 6 24s3-7.5 8.5-7.5Zm19 0L24 24l9.5 7.5C39 31.5 42 28.2 42 24s-3-7.5-8.5-7.5Z"
+                    stroke="#101114"
+                    strokeWidth="2.4"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
               </div>
               <h3 className="text-white text-lg font-bold">9Router</h3>
             </div>

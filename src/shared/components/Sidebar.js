@@ -120,8 +120,16 @@ export default function Sidebar({ onClose }) {
         {/* Logo */}
         <div className="px-6 py-4 flex flex-col gap-2">
           <Link href="/dashboard" className="flex items-center gap-3">
-            <div className="flex items-center justify-center size-9 rounded-[10px] bg-gradient-to-br from-brand-500 to-brand-700 shadow-[var(--shadow-warm)]">
-              <span className="material-symbols-outlined text-white text-[20px]">hub</span>
+            <div className="flex items-center justify-center size-9 rounded-[10px] bg-white shadow-[var(--shadow-warm)]">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" className="size-6">
+                <path
+                  d="M14.5 16.5 24 24l-9.5 7.5C9 31.5 6 28.2 6 24s3-7.5 8.5-7.5Zm19 0L24 24l9.5 7.5C39 31.5 42 28.2 42 24s-3-7.5-8.5-7.5Z"
+                  stroke="#101114"
+                  strokeWidth="2.4"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
             </div>
             <div className="flex flex-col">
               <h1 className="text-lg font-semibold tracking-tight text-text-main">
