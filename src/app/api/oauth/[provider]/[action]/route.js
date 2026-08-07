@@ -6,7 +6,7 @@ import {
   requestDeviceCode,
   pollForToken
 } from "@/lib/oauth/providers";
-import { createProviderConnection } from "@/models";
+import { createProviderConnection, updateProviderConnection } from "@/models";
 import {
   startCodexProxy,
   stopCodexProxy,
@@ -445,6 +445,26 @@ export async function POST(request, { params }) {
       const { code, state } = body;
       const connection = await completeXaiManualCode(String(code || "").trim(), String(state || "").trim());
       return NextResponse.json({ success: true, connection });
+    }
+
+    // Keelcode relogin: the EC2 daemon re-auths a revoked device token (it has
+    // the captcha solver 9router doesn't) and posts the fresh access token back
+    // here so the OAuth connection stays alive without manual re-connect.
+    if (provider === "keelcode" && action === "update-token") {
+      const { connectionId, accessToken, expiresIn, expiresAt } = body;
+      if (!connectionId || !accessToken) {
+        return NextResponse.json({ error: "connectionId and accessToken required" }, { status: 400 });
+      }
+      const connection = await updateProviderConnection(String(connectionId), {
+        accessToken: String(accessToken),
+        refreshToken: null,
+        expiresIn: expiresIn || 604800,
+        expiresAt: expiresAt || new Date(Date.now() + (expiresIn || 604800) * 1000).toISOString(),
+        testStatus: "active",
+        lastError: null,
+        lastErrorAt: null,
+      });
+      return NextResponse.json({ success: true, connection: { id: connection?.id, provider } });
     }
 
     return NextResponse.json({ error: "Unknown action" }, { status: 400 });

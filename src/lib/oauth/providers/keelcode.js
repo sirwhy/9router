@@ -64,8 +64,11 @@ const keelcode = {
         access_token: data.access_token,
         refresh_token: data.refresh_token || null,
         expires_in: data.expires_in || 604800,
-        _keelcodeEmail: userInfo.email || "",
+        _keelcodeEmail: userInfo.email || (extraData?._keelcodeEmail) || "",
         _keelcodeName: userInfo.name || userInfo.user?.name || "",
+        // Keep sign-in credentials in extraData so a revoked token can be
+        // automatically re-logged-in (device-flow re-approve) instead of dying.
+        _keelcodePassword: (extraData?._keelcodePassword) || "",
       },
     };
   },
@@ -79,6 +82,9 @@ const keelcode = {
       displayName: tokens._keelcodeName || null,
       providerSpecificData: {
         authMethod: "device",
+        keelcodeEmail: tokens._keelcodeEmail || null,
+        // used by the relogin daemon to re-auth a revoked device token
+        keelcodePassword: tokens._keelcodePassword || null,
       },
     };
   },
