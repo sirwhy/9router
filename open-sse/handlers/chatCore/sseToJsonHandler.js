@@ -4,8 +4,6 @@ import { HTTP_STATUS } from "../../config/runtimeConfig.js";
 import { FORMATS } from "../../translator/formats.js";
 import { PROVIDERS } from "../../config/providers.js";
 import { buildRequestDetail, extractRequestConfig, saveUsageStats, formatDoneLine } from "./requestDetail.js";
-import { translateResponse, initState } from "../../translator/index.js";
-import { formatSSE } from "../../utils/streamHelpers.js";
 
 // Responses-API providers (e.g. codex) may emit SSE without content-type + use Responses output shape
 const isResponsesProvider = (p) => PROVIDERS[p]?.format === FORMATS.OPENAI_RESPONSES;
@@ -114,59 +112,95 @@ export function parseSSEToOpenAIResponse(rawSSE, fallbackModel) {
 }
 
 /**
- * Translate a raw SSE text stream (any provider format) into OpenAI-format SSE text.
- * Mirrors the streaming path's translateResponse() pipeline so the non-streaming
- * JSON assembler sees OpenAI-shaped chunks even for Claude/Gemini/Kiro upstreams.
+ * Translate a raw SSE text stream in Claude/Anthropic format into OpenAI-format
+ * SSE text. Self-contained (no translator import) to avoid circular deps and
+ * keep the non-streaming JSON assembler light. Handles the common shapes:
+ *   - Claude: content_block_start (thinking/text), content_block_delta
+ *     (thinking_delta/text_delta), message_delta, message_stop
+ *   - Already-OpenAI SSE is passed through unchanged.
+ * Returns OpenAI `data:` lines, including a synthetic finish/usage tail.
  */
 export function translateSSEToOpenAI(rawSSE, sourceFormat, fallbackModel = null) {
   if (sourceFormat === FORMATS.OPENAI) return rawSSE;
-  const state = initState(FORMATS.OPENAI);
-  const outLines = [];
+  const out = [];
+  const id = `chatcmpl-${Date.now()}`;
+  const created = Math.floor(Date.now() / 1000);
+  const model = fallbackModel || "unknown";
+  let inThinking = false;
   let sawAny = false;
+  let contentChunkEmitted = false;
+  let usage = {};
+
+  const push = (obj) => {
+    const line = `data: ${JSON.stringify(obj)}\n\n`;
+    out.push(line);
+    sawAny = true;
+  };
+  const roleChunk = () =>
+    push({ id, object: "chat.completion.chunk", created, model, choices: [{ index: 0, delta: { role: "assistant" }, finish_reason: null }] });
+
   for (const line of String(rawSSE || "").split("\n")) {
     const trimmed = line.trim();
     if (!trimmed.startsWith("data:")) continue;
     const payload = trimmed.slice(5).trim();
-    if (!payload || payload === "[DONE]") {
-      if (payload === "[DONE]") outLines.push(line);
-      continue;
-    }
-    let parsed;
+    if (!payload || payload === "[DONE]") continue;
+    let ev;
     try {
-      parsed = JSON.parse(payload);
+      ev = JSON.parse(payload);
     } catch {
       continue;
     }
-    if (parsed?.error) {
-      outLines.push(line);
-      continue;
-    }
-    const translated = translateResponse(sourceFormat, FORMATS.OPENAI, parsed, state);
-    if (translated?.length) {
-      for (const item of translated) {
-        if (item == null) continue;
-        const out = formatSSE(item, FORMATS.OPENAI);
-        if (out) {
-          outLines.push(out);
-          sawAny = true;
+    switch (ev?.type) {
+      case "message_start":
+        if (ev.message?.usage) usage = { ...usage, ...ev.message.usage };
+        if (!contentChunkEmitted) { roleChunk(); contentChunkEmitted = true; }
+        break;
+      case "content_block_start":
+        if (ev.content_block?.type === "thinking") inThinking = true;
+        if (!contentChunkEmitted) { roleChunk(); contentChunkEmitted = true; }
+        break;
+      case "content_block_delta": {
+        const delta = ev.delta || {};
+        if (delta.type === "thinking_delta" && delta.thinking) {
+          push({ id, object: "chat.completion.chunk", created, model, choices: [{ index: 0, delta: { reasoning_content: delta.thinking }, finish_reason: null }] });
+        } else if (delta.type === "text_delta" && delta.text) {
+          push({ id, object: "chat.completion.chunk", created, model, choices: [{ index: 0, delta: { content: delta.text }, finish_reason: null }] });
         }
+        break;
       }
+      case "content_block_stop":
+        if (ev.index === 0) inThinking = false;
+        break;
+      case "message_delta":
+        if (ev.usage) usage = { ...usage, ...ev.usage };
+        if (ev.delta?.stop_reason) {
+          push({ id, object: "chat.completion.chunk", created, model, choices: [{ index: 0, delta: {}, finish_reason: "stop" }] });
+        }
+        break;
+      case "message_stop":
+        break;
+      case "error":
+        push({ id, object: "chat.completion.chunk", created, model, choices: [{ index: 0, delta: {}, finish_reason: null }], error: ev.error });
+        break;
+      default:
+        break;
     }
   }
-  // Flush remaining state (usage/finish from terminal events)
-  const flushed = translateResponse(sourceFormat, FORMATS.OPENAI, null, state);
-  if (flushed?.length) {
-    for (const item of flushed) {
-      if (item == null) continue;
-      const out = formatSSE(item, FORMATS.OPENAI);
-      if (out) {
-        outLines.push(out);
-        sawAny = true;
-      }
-    }
-  }
-  if (!sawAny) return rawSSE; // no translation produced anything — keep raw
-  return outLines.join("\n");
+
+  // Synthetic finish + usage tail so parseSSEToOpenAIResponse() sees a terminal chunk.
+  push({
+    id, object: "chat.completion.chunk", created, model,
+    choices: [{ index: 0, delta: {}, finish_reason: "stop" }],
+    usage: {
+      prompt_tokens: usage.input_tokens || 0,
+      completion_tokens: usage.output_tokens || 0,
+      total_tokens: (usage.input_tokens || 0) + (usage.output_tokens || 0),
+    },
+  });
+  push({ id, object: "chat.completion.chunk", created, model, choices: [] });
+  out.push("data: [DONE]\n\n");
+  if (!sawAny) return rawSSE;
+  return out.join("");
 }
 
 /**
