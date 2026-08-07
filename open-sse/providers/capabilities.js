@@ -152,6 +152,18 @@ export const PROVIDER_CAPABILITIES = {
     "gpt-5.6-terra-thinking-agentic": KIRO_GPT_5_6_CAPABILITIES,
     "gpt-5.6-luna-thinking-agentic": KIRO_GPT_5_6_CAPABILITIES,
   },
+  // Keelcode — rejects max_tokens above its output ceiling with 400
+  // "unsupported_capability"/"invalid_request". All models capped at 8192.
+  "keelcode": {
+    "kimi-k3": { reasoning: true, thinkingFormat: "kimi", contextWindow: 1048576, maxOutput: 8192 },
+    "kimi-k2.7-code": { reasoning: true, thinkingFormat: "kimi", contextWindow: 262144, maxOutput: 8192 },
+    "kimi-k2.6": { reasoning: true, thinkingFormat: "openai", contextWindow: 256000, maxOutput: 8192 },
+    "deepseek-v4-pro": { reasoning: true, thinkingFormat: "openai", contextWindow: 1000000, maxOutput: 8192 },
+    "deepseek-v4-flash": { reasoning: true, thinkingFormat: "openai", contextWindow: 1000000, maxOutput: 8192 },
+    "gpt-5.6-luna": { reasoning: true, thinkingFormat: "openai", contextWindow: 1050000, maxOutput: 8192 },
+    "gpt-5.6-terra": { reasoning: true, thinkingFormat: "openai", contextWindow: 1050000, maxOutput: 8192 },
+    "gpt-5.6-sol": { reasoning: true, thinkingFormat: "openai", contextWindow: 1050000, maxOutput: 8192 },
+  },
   // CodeBuddy.cn — authoritative per-model metadata from the gateway's model
   // config (contextWindow=maxInputTokens, maxOutput=maxOutputTokens, vision=
   // supportsImages). Every model reasons via OpenAI-style reasoning_effort
