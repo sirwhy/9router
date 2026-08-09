@@ -218,6 +218,12 @@ export class DefaultExecutor extends BaseExecutor {
 
   // Fallback descriptor for providers without an explicit entry in AUTH_DESCRIPTORS.
   resolveAuthDescriptor() {
+    if (this.provider === "keelcode") {
+      // keelcode (api.keelcode.ai) only accepts Authorization: Bearer, never
+      // x-api-key (that returns 401 "API key required"). format=claude would hit
+      // the XAPIKEY fallback below, so force BEARER first.
+      return BEARER;
+    }
     if (this.provider?.startsWith?.("anthropic-compatible-")) {
       return { apiKey: { header: "x-api-key", scheme: "raw" }, oauth: { header: "Authorization", scheme: "bearer" }, anthropicVersion: true };
     }
