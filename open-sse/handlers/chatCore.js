@@ -295,10 +295,6 @@ export async function handleChatCore({ body, modelInfo, credentials, log, onCred
   // exception: it is decoded by the executor into OpenAI-compatible output.
   let providerResponseFormat = targetFormat;
   try {
-    // TEMP DEBUG (keelcode identity): log the translated body sent upstream.
-    if (provider === "keelcode") {
-      try { console.log("KEEL_BODY", JSON.stringify(translatedBody)); } catch (e) {}
-    }
     const result = await executor.execute({ model, body: translatedBody, stream, credentials, signal: streamController.signal, log, proxyOptions });
     providerResponse = result.response;
     providerUrl = result.url;
