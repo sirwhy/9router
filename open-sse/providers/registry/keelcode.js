@@ -1,5 +1,10 @@
 // Keelcode — hosted coding agent API (https://keelcode.ai)
-// Anthropic Messages format (/v1/messages), Bearer auth, streaming-only.
+// Endpoint is Anthropic-messages shaped, but each model maps to its REAL
+// upstream (GPT-5.6 → OpenAI, Kimi → Moonshot, DeepSeek → DeepSeek, GLM → Z.ai).
+// We must NOT send the `Anthropic-Version` header: doing so makes keelcode
+// treat the request as a native Claude call and it routes EVERY model,
+// including GPT / DeepSeek / GLM, to Anthropic upstream (so they'd answer
+// "Anthropic made me"). Without it, keelcode serves the genuine model.
 // OAuth2 device flow (keelcode login) OR manual token paste.
 
 export default {
@@ -27,9 +32,14 @@ export default {
   transport: {
     baseUrl: "https://api.keelcode.ai/v1/messages",
     format: "claude",
-    forceStream: true,
+    // Do NOT force every call to look like Anthropic. Keelcode's /v1/messages
+    // serves the real underlying model per model id; only requests carrying the
+    // Anthropic-Version header get coerced to Claude. Let streaming follow the
+    // model's natural mode instead of forcing it.
+    forceStream: false,
     headers: {
-      "Anthropic-Version": "2023-06-01",
+      // NOTE: intentionally NO "Anthropic-Version". Sending it would force
+      // Anthropic upstream for every model.
     },
     auth: {
       apiKey: {
@@ -49,7 +59,6 @@ export default {
     userInfoUrl: "https://api.keelcode.ai/v1/me",
     scopes: "inference models usage",
     flowType: "device_code",
-    // device flow uses non-standard grant_type URN
     deviceGrantType: "urn:ietf:params:oauth:grant-type:device_code",
     refreshLeadMs: 432000000,
   },
