@@ -151,6 +151,11 @@ export class DefaultExecutor extends BaseExecutor {
   transformRequest(model, body) {
     const transformed = this.applyJsonSchemaFallback(body);
 
+    // TEMP DEBUG (removed after keelcode identity fix): capture exact body sent
+    // to api.keelcode.ai to find why it answers "Anthropic" vs direct "OpenAI".
+    if (this.provider === "keelcode") {
+      try { console.log("KEEL_DEBUG_BODY", JSON.stringify(transformed)); } catch (e) {}
+    }
     if (transformed && typeof transformed === "object") {
       // quirk: some openai-compatible providers reject Anthropic's client_metadata field
       if (this.config.quirks?.dropClientMetadata) {
