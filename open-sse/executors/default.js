@@ -102,6 +102,12 @@ const HEADER_HOOKS = {
   // Stable device_id from OAuth connection (CLIProxyAPI KimiTokenStorage.DeviceID)
   kimiHeaders: (h, c) => Object.assign(h, buildKimiHeaders(c?.providerSpecificData?.deviceId)),
   clineHeaders: (h, c) => Object.assign(h, buildClineHeaders(c.apiKey || c.accessToken)),
+  // Keelcode CLI sends x-keelcode-client-fingerprint (RE: keelcode binary auth
+  // header set includes it). Some identity/behavior differs when absent.
+  keelcodeFingerprint: (h, c) => {
+    const fp = c.providerSpecificData?.clientFingerprint;
+    if (fp) h["x-keelcode-client-fingerprint"] = fp;
+  },
   kilocodeOrg: (h, c) => { if (c.providerSpecificData?.orgId) h["X-Kilocode-OrganizationID"] = c.providerSpecificData.orgId; },
   // AgentRouter WAF cookie injection
   agentrouterWaf: (h) => {
@@ -240,6 +246,16 @@ export class DefaultExecutor extends BaseExecutor {
     // Hooks run BEFORE auth so dynamic overlays (claude cached headers) can't clobber the token.
     for (const hook of desc.hooks || []) HEADER_HOOKS[hook]?.(headers, credentials);
     applyAuth(headers, desc, credentials);
+
+    // RE finding: keelcode CLI always sends x-keelcode-client-fingerprint (from
+    // the OAuth device flow token). Ensure 9router relays it so keelcode sees
+    // the same client identity as the native CLI.
+    if (this.provider === "keelcode") {
+      const fp = credentials?.providerSpecificData?.clientFingerprint;
+      if (fp && !headers["x-keelcode-client-fingerprint"]) {
+        headers["x-keelcode-client-fingerprint"] = fp;
+      }
+    }
 
     // Strip first-party Claude Code identity headers for non-Anthropic anthropic-compatible upstreams
     if (this.provider?.startsWith?.("anthropic-compatible-")) {
