@@ -148,6 +148,17 @@ export async function handleChatCore({ body, modelInfo, credentials, log, onCred
     toolNameMap = translatedBody._toolNameMap;
     delete translatedBody._toolNameMap;
     translatedBody.model = stripThinkingSuffix(upstreamModel);
+
+    // Keelcode (format=claude via /v1/messages): the openai→claude translator
+    // injects "You are Claude Code, Anthropic's official CLI" as the default
+    // system prompt. For keelcode that makes every model claim it was made by
+    // Anthropic. Strip it so keelcode serves the genuine model identity.
+    if (provider === "keelcode" && Array.isArray(translatedBody?.system)) {
+      translatedBody.system = translatedBody.system.filter(
+        (b) => !(b?.text && String(b.text).includes("You are Claude Code"))
+      );
+      if (translatedBody.system.length === 0) delete translatedBody.system;
+    }
   }
 
   // Dedupe duplicate built-in tools when equivalent MCP tools are present (Claude clients only).
