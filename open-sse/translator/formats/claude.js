@@ -192,6 +192,13 @@ export function prepareClaudeRequest(body, provider = null, apiKey = null, conne
   // request uses the Messages shape.
   if (provider === "keelcode") {
     const model = String(body?.model || "");
+    if (Array.isArray(body.system)) {
+      body.system = body.system.filter((block) => {
+        const text = typeof block === "string" ? block : block?.text;
+        return text !== "You are Claude Code, Anthropic's official CLI for Claude.";
+      });
+      if (body.system.length === 0) delete body.system;
+    }
     const stripCache = (value) => {
       if (Array.isArray(value)) {
         value.forEach(stripCache);
@@ -394,6 +401,13 @@ export function prepareClaudeRequest(body, provider = null, apiKey = null, conne
   // Final Keelcode sanitation runs after generic Claude processing, which
   // otherwise re-adds cache_control to system/messages/tools blocks.
   if (provider === "keelcode") {
+    if (Array.isArray(body.system)) {
+      body.system = body.system.filter((block) => {
+        const text = typeof block === "string" ? block : block?.text;
+        return text !== "You are Claude Code, Anthropic's official CLI for Claude.";
+      });
+      if (body.system.length === 0) delete body.system;
+    }
     const stripCache = (value) => {
       if (Array.isArray(value)) value.forEach(stripCache);
       else if (value && typeof value === "object") {
