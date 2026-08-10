@@ -156,9 +156,11 @@ export const PROVIDER_CAPABILITIES = {
   // keep claude-budget so the translator emits `thinking`, not OpenAI
   // `reasoning_effort`. maxOutput mirrors upstream metadata.
   "keelcode": {
-    "kimi-k3": { reasoning: true, thinkingFormat: "claude-budget", contextWindow: 1048576, maxOutput: 16000 },
-    "kimi-k2.7-code": { reasoning: true, thinkingFormat: "claude-budget", contextWindow: 262144, maxOutput: 128000 },
-    "kimi-k2.6": { reasoning: true, thinkingFormat: "claude-budget", contextWindow: 262144, maxOutput: 128000 },
+    // Keelcode's Kimi endpoints reject the Anthropic thinking extension. Keep
+    // these models non-reasoning so the translator does not inject `thinking`.
+    "kimi-k3": { reasoning: false, thinkingCanDisable: true, contextWindow: 1048576, maxOutput: 16000 },
+    "kimi-k2.7-code": { reasoning: false, thinkingCanDisable: true, contextWindow: 262144, maxOutput: 128000 },
+    "kimi-k2.6": { reasoning: false, thinkingCanDisable: true, contextWindow: 262144, maxOutput: 128000 },
     "deepseek-v4-pro": { reasoning: true, thinkingFormat: "claude-budget", contextWindow: 1000000, maxOutput: 128000 },
     "deepseek-v4-flash": { reasoning: true, thinkingFormat: "claude-budget", contextWindow: 1000000, maxOutput: 128000 },
     "gpt-5.6-luna": { reasoning: true, thinkingFormat: "claude-budget", contextWindow: 1050000, maxOutput: 128000 },

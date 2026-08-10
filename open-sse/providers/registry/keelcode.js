@@ -36,7 +36,8 @@ export default {
     // serves the real underlying model per model id; only requests carrying the
     // Anthropic-Version header get coerced to Claude. Let streaming follow the
     // model's natural mode instead of forcing it.
-    forceStream: false,
+    // Keelcode's Messages contract requires streaming for all inference calls.
+    forceStream: true,
     headers: {
       // NOTE: intentionally NO "Anthropic-Version". Sending it would force
       // Anthropic upstream for every model.

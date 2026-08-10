@@ -187,6 +187,27 @@ export function normalizeClaudePassthrough(body, model = "") {
 // - Fix tool_use/tool_result ordering
 // - Apply cloaking (billing header + fake user ID) for OAuth tokens
 export function prepareClaudeRequest(body, provider = null, apiKey = null, connectionId = null, rawHeaders = null, sessionId = null) {
+  // Keelcode implements a strict Messages subset. Its upstream adapters reject
+  // Anthropic cache extensions and Kimi reasoning fields even though the outer
+  // request uses the Messages shape.
+  if (provider === "keelcode") {
+    const model = String(body?.model || "");
+    const stripCache = (value) => {
+      if (Array.isArray(value)) {
+        value.forEach(stripCache);
+      } else if (value && typeof value === "object") {
+        delete value.cache_control;
+        Object.values(value).forEach(stripCache);
+      }
+    };
+    stripCache(body);
+    if (/kimi/i.test(model)) {
+      delete body.thinking;
+      delete body.reasoning_effort;
+      delete body.output_config;
+    }
+  }
+
   // quirk: MiniMax's Claude-compatible endpoint rejects Anthropic's output_config (400 invalid params)
   if (PROVIDERS[provider]?.quirks?.dropOutputConfig) {
     delete body.output_config;
@@ -368,6 +389,24 @@ export function prepareClaudeRequest(body, provider = null, apiKey = null, conne
   if ((provider === "claude" || provider?.startsWith("anthropic-compatible")) && apiKey) {
     const sid = sessionId || resolveSessionId({ headers: rawHeaders, body, connectionId, scope: "claude" });
     body = applyCloaking(body, apiKey, sid);
+  }
+
+  // Final Keelcode sanitation runs after generic Claude processing, which
+  // otherwise re-adds cache_control to system/messages/tools blocks.
+  if (provider === "keelcode") {
+    const stripCache = (value) => {
+      if (Array.isArray(value)) value.forEach(stripCache);
+      else if (value && typeof value === "object") {
+        delete value.cache_control;
+        Object.values(value).forEach(stripCache);
+      }
+    };
+    stripCache(body);
+    if (/kimi/i.test(String(body.model || ""))) {
+      delete body.thinking;
+      delete body.reasoning_effort;
+      delete body.output_config;
+    }
   }
 
   return body;
