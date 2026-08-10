@@ -139,6 +139,12 @@ export class BaseExecutor {
       try {
         const bodyStr = JSON.stringify(transformedBody);
         const fetchT0 = Date.now();
+        // TEMP DEBUG: log keelcode outbound to stdout (surfaces in Railway logs)
+        if (this.provider === "keelcode") {
+          try {
+            console.log("KEEL_OUTBOUND headers=" + JSON.stringify(headers) + " body=" + bodyStr);
+          } catch (e) {}
+        }
         dbg("FETCH", `${this.provider.toUpperCase()} → ${url} | body=${bodyStr.length}B | connectTimeout=${timeoutMs}ms`);
         const response = await proxyAwareFetch(url, {
           method: "POST",
