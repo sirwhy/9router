@@ -122,6 +122,22 @@ describe("applyThinking per provider format", () => {
     expect(out.thinking).toEqual({ type: "enabled" });
     expect(out.reasoning_effort).toBe("high");
   });
+  it("Keelcode DeepSeek → Claude budget thinking with gateway minimum", () => {
+    const low = apply("claude", "deepseek-v4-pro", { reasoning_effort: "minimal" }, "keelcode");
+    const high = apply("claude", "deepseek-v4-pro", { reasoning_effort: "high" }, "keelcode");
+    expect(low.thinking).toEqual({ type: "enabled", budget_tokens: 1024 });
+    expect(low.reasoning_effort).toBeUndefined();
+    expect(high.thinking).toEqual({ type: "enabled", budget_tokens: 24576 });
+    expect(high.reasoning_effort).toBeUndefined();
+  });
+  it("Keelcode DeepSeek none → disabled thinking without stale fields", () => {
+    const out = apply("claude", "deepseek-v4-pro(none)", {
+      thinking: { type: "enabled", budget_tokens: 8192 },
+      reasoning_effort: "high",
+    }, "keelcode");
+    expect(out.thinking).toEqual({ type: "disabled" });
+    expect(out.reasoning_effort).toBeUndefined();
+  });
   it("Kimi on → reasoning_effort", () => {
     const out = apply("openai", "kimi-k2.6", { reasoning_effort: "high" }, "kimi");
     expect(out.reasoning_effort).toBe("high");

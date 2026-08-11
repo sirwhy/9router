@@ -161,8 +161,11 @@ export const PROVIDER_CAPABILITIES = {
     "kimi-k3": { reasoning: false, thinkingCanDisable: true, contextWindow: 1048576, maxOutput: 16000 },
     "kimi-k2.7-code": { reasoning: false, thinkingCanDisable: true, contextWindow: 262144, maxOutput: 128000 },
     "kimi-k2.6": { reasoning: false, thinkingCanDisable: true, contextWindow: 262144, maxOutput: 128000 },
-    "deepseek-v4-pro": { reasoning: true, thinkingFormat: "claude-budget", contextWindow: 1000000, maxOutput: 128000 },
-    "deepseek-v4-flash": { reasoning: true, thinkingFormat: "claude-budget", contextWindow: 1000000, maxOutput: 128000 },
+    // Keelcode validates Anthropic budget thinking strictly: budgets below 1024
+    // are rejected even though the shared effort map contains a 512-token
+    // `minimal` level. Clamp the unified budget to the gateway's contract.
+    "deepseek-v4-pro": { reasoning: true, thinkingFormat: "claude-budget", thinkingRange: { min: 1024, max: 128000 }, contextWindow: 1000000, maxOutput: 128000 },
+    "deepseek-v4-flash": { reasoning: true, thinkingFormat: "claude-budget", thinkingRange: { min: 1024, max: 128000 }, contextWindow: 1000000, maxOutput: 128000 },
     "gpt-5.6-luna": { reasoning: true, thinkingFormat: "claude-budget", contextWindow: 1050000, maxOutput: 128000 },
     "gpt-5.6-terra": { reasoning: true, thinkingFormat: "claude-budget", contextWindow: 1050000, maxOutput: 128000 },
     "gpt-5.6-sol": { reasoning: true, thinkingFormat: "claude-budget", contextWindow: 1050000, maxOutput: 128000 },
