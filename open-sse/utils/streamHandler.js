@@ -100,9 +100,27 @@ export function createDisconnectAwareStream(transformStream, streamController, o
   const writer = transformStream.writable.getWriter();
   let terminalEmitted = false;
 
-  // Emit a synthesized terminal payload (e.g. Responses response.failed + [DONE]) once
+  // Reliable terminal detection: keep a bounded rolling tail of decoded output so a
+  // terminal token ("message_stop" / "[DONE]") is caught even when it straddles two
+  // reader.read() chunk boundaries. Per-chunk substring checks are NOT reliable here.
+  let tail = "";
+  let terminalSeen = false;
+  const decoder = new TextDecoder("utf-8", { fatal: false });
+  const TERMINAL_MARKERS = ["message_stop", "[DONE]", "response.completed", "response.failed"];
+  const observeChunk = (value) => {
+    if (terminalSeen || !onAbortTerminal || !value) return;
+    try {
+      tail += decoder.decode(value, { stream: true });
+      if (tail.length > 512) tail = tail.slice(-512);
+      if (TERMINAL_MARKERS.some(m => tail.includes(m))) terminalSeen = true;
+    } catch { /* non-text chunk — ignore */ }
+  };
+
+  // Emit a synthesized terminal payload once. Only fires when the upstream never
+  // produced its own terminal (terminalSeen === false), so it is idempotent and
+  // never double-emits message_stop on the normal success path.
   const emitTerminal = (controller) => {
-    if (terminalEmitted || !onAbortTerminal) return;
+    if (terminalEmitted || terminalSeen || !onAbortTerminal) return;
     terminalEmitted = true;
     try {
       const bytes = onAbortTerminal();
@@ -122,10 +140,14 @@ export function createDisconnectAwareStream(transformStream, streamController, o
         const { done, value } = await reader.read();
 
         if (done) {
+          // Clean EOF path. Codex/cx can close mid-reasoning without the transform
+          // flush emitting a client terminal; synthesize one only if none was seen.
+          emitTerminal(controller);
           streamController.handleComplete();
           controller.close();
           return;
         }
+        observeChunk(value);
         controller.enqueue(value);
       } catch (error) {
         const wasConnected = streamController.isConnected();
