@@ -4,7 +4,7 @@ import { createSSETransformStreamWithLogger, createPassthroughStreamWithLogger }
 import { pipeWithDisconnect } from "../../utils/streamHandler.js";
 import { PROVIDERS } from "../../config/providers.js";
 import { STREAM_STALL_TIMEOUT_MS } from "../../config/runtimeConfig.js";
-import { buildAbortedResponsesTerminalBytes, buildAbortedClientTerminalBytes } from "../../utils/responsesStreamHelpers.js";
+import { buildAbortedResponsesTerminalBytes } from "../../utils/responsesStreamHelpers.js";
 import { buildRequestDetail, extractRequestConfig, saveUsageStats, formatDoneLine } from "./requestDetail.js";
 import { saveRequestDetail } from "@/lib/usageDb.js";
 import { SSE_HEADERS_CORS as SSE_HEADERS } from "../../utils/sseConstants.js";
@@ -83,24 +83,7 @@ export async function handleStreamingResponse({ providerResponse, provider, mode
 
   // Responses passthrough: synthesize response.failed + [DONE] if the stream aborts/stalls before a terminal event
   const isResponsesPassthrough = sourceFormat === FORMATS.OPENAI_RESPONSES && targetFormat === FORMATS.OPENAI_RESPONSES;
-  // Codex-translation path: upstream is a Responses-API provider (e.g. cx/* codex) being
-  // translated INTO a client format (Claude / OpenAI). If it hard-aborts mid-reasoning the
-  // TransformStream flush() never runs, so the client (OMP etc.) never gets its terminal
-  // (message_stop / [DONE]) and errors with "stream ended before message_stop". Synthesize
-  // a minimally-valid client terminal on abort for this path too.
-  const isDroidCLI = userAgent?.toLowerCase().includes("droid") || userAgent?.toLowerCase().includes("codex-cli");
-  const isResponsesProvider = PROVIDERS[provider]?.format === FORMATS.OPENAI_RESPONSES;
-  const isCodexTranslation = isResponsesProvider && targetFormat === FORMATS.OPENAI_RESPONSES && !isDroidCLI
-    && sourceFormat !== FORMATS.OPENAI_RESPONSES;
-  let onAbortTerminal = null;
-  if (isResponsesPassthrough) {
-    onAbortTerminal = buildAbortedResponsesTerminalBytes;
-  } else if (isCodexTranslation) {
-    // sourceFormat is the CLIENT format we translate into (CLAUDE for OMP /v1/messages,
-    // OPENAI for chat-completions clients). Bind it so the terminal matches the wire format.
-    const clientFormat = sourceFormat;
-    onAbortTerminal = () => buildAbortedClientTerminalBytes(clientFormat);
-  }
+  const onAbortTerminal = isResponsesPassthrough ? buildAbortedResponsesTerminalBytes : null;
   const stallTimeoutMs = PROVIDERS[provider]?.stallTimeoutMs || STREAM_STALL_TIMEOUT_MS;
   const transformedBody = pipeWithDisconnect(providerResponse, transformStream, streamController, onAbortTerminal, stallTimeoutMs);
 
