@@ -4,7 +4,7 @@ import { createSSETransformStreamWithLogger, createPassthroughStreamWithLogger }
 import { pipeWithDisconnect } from "../../utils/streamHandler.js";
 import { PROVIDERS } from "../../config/providers.js";
 import { STREAM_STALL_TIMEOUT_MS } from "../../config/runtimeConfig.js";
-import { buildAbortedResponsesTerminalBytes, buildAbortedClientTerminalBytes } from "../../utils/responsesStreamHelpers.js";
+import { buildAbortedResponsesTerminalBytes } from "../../utils/responsesStreamHelpers.js";
 import { buildRequestDetail, extractRequestConfig, saveUsageStats, formatDoneLine } from "./requestDetail.js";
 import { saveRequestDetail } from "@/lib/usageDb.js";
 import { SSE_HEADERS_CORS as SSE_HEADERS } from "../../utils/sseConstants.js";
@@ -83,26 +83,7 @@ export async function handleStreamingResponse({ providerResponse, provider, mode
 
   // Responses passthrough: synthesize response.failed + [DONE] if the stream aborts/stalls before a terminal event
   const isResponsesPassthrough = sourceFormat === FORMATS.OPENAI_RESPONSES && targetFormat === FORMATS.OPENAI_RESPONSES;
-  // Codex-translation path: a Responses-API upstream (codex / cx models — provider.format
-  // === "openai-responses") translated INTO a client format (Claude for OMP /v1/messages,
-  // OpenAI for chat clients). If the upstream closes mid-reasoning the SSE transform flush()
-  // may not run, so the client never receives its terminal (message_stop / [DONE]) and errors
-  // "stream ended before message_stop". Provide an abort/EOF terminal for this path; the
-  // stream handler only emits it when no real terminal was observed (idempotent).
-  const isDroidCLI = userAgent?.toLowerCase().includes("droid") || userAgent?.toLowerCase().includes("codex-cli");
-  const isResponsesProvider = PROVIDERS[provider]?.format === FORMATS.OPENAI_RESPONSES;
-  const isCodexTranslation = isResponsesProvider
-    && targetFormat === FORMATS.OPENAI_RESPONSES
-    && sourceFormat !== FORMATS.OPENAI_RESPONSES
-    && !isDroidCLI;
-  let onAbortTerminal = null;
-  if (isResponsesPassthrough) {
-    onAbortTerminal = buildAbortedResponsesTerminalBytes;
-  } else if (isCodexTranslation) {
-    // sourceFormat is the CLIENT wire format we translate into (CLAUDE / OPENAI).
-    const clientFormat = sourceFormat;
-    onAbortTerminal = () => buildAbortedClientTerminalBytes(clientFormat);
-  }
+  const onAbortTerminal = isResponsesPassthrough ? buildAbortedResponsesTerminalBytes : null;
   const stallTimeoutMs = PROVIDERS[provider]?.stallTimeoutMs || STREAM_STALL_TIMEOUT_MS;
   const transformedBody = pipeWithDisconnect(providerResponse, transformStream, streamController, onAbortTerminal, stallTimeoutMs);
 
