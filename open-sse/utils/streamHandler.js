@@ -99,6 +99,20 @@ export function createDisconnectAwareStream(transformStream, streamController, o
   const reader = transformStream.readable.getReader();
   const writer = transformStream.writable.getWriter();
   let terminalEmitted = false;
+  let terminalSeen = false;   // upstream already produced its own terminal (message_stop / [DONE])
+  const decoder = new TextDecoder();
+
+  // Detect whether the client-facing terminal has flowed through. Responses-API
+  // providers (codex/cx) can EOF mid-reasoning WITHOUT running the SSE flush(), so
+  // no message_stop / [DONE] is emitted yet the reader still reports done=true
+  // cleanly (not an error). Track it so the done-branch can synthesize a terminal.
+  const markTerminalSeen = (value) => {
+    if (terminalSeen || !onAbortTerminal || !value) return;
+    try {
+      const text = decoder.decode(value, { stream: true });
+      if (text.includes("message_stop") || text.includes("[DONE]")) terminalSeen = true;
+    } catch { /* non-text chunk */ }
+  };
 
   // Emit a synthesized terminal payload (e.g. Responses response.failed + [DONE]) once
   const emitTerminal = (controller) => {
@@ -122,10 +136,15 @@ export function createDisconnectAwareStream(transformStream, streamController, o
         const { done, value } = await reader.read();
 
         if (done) {
+          // Clean EOF: if the upstream never emitted its own terminal (codex EOF
+          // mid-reasoning skips flush()), synthesize one so translated clients
+          // (OMP -> Claude message_stop, chat -> [DONE]) can finalize the turn.
+          if (!terminalSeen) emitTerminal(controller);
           streamController.handleComplete();
           controller.close();
           return;
         }
+        markTerminalSeen(value);
         controller.enqueue(value);
       } catch (error) {
         const wasConnected = streamController.isConnected();
