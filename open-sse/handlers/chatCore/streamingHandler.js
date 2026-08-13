@@ -30,7 +30,10 @@ function buildTransformStream({ provider, sourceFormat, targetFormat, userAgent,
 
   if (needsCodexTranslation) {
     const codexTarget = CODEX_SOURCE_TO_TARGET[sourceFormat] || FORMATS.OPENAI;
-    return createSSETransformStreamWithLogger(FORMATS.OPENAI_RESPONSES, codexTarget, provider, reqLogger, toolNameMap, model, connectionId, body, onStreamComplete, apiKey);
+    // Only Anthropic Messages streams need the stateful Claude terminal. The
+    // Responses passthrough has its own response.failed/[DONE] handling.
+    const emitAbortTerminal = codexTarget === FORMATS.CLAUDE;
+    return createSSETransformStreamWithLogger(FORMATS.OPENAI_RESPONSES, codexTarget, provider, reqLogger, toolNameMap, model, connectionId, body, onStreamComplete, apiKey, emitAbortTerminal);
   }
 
   if (needsTranslation(targetFormat, sourceFormat)) {

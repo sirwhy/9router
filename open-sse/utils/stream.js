@@ -48,7 +48,8 @@ export function createSSEStream(options = {}) {
     connectionId = null,
     body = null,
     onStreamComplete = null,
-    apiKey = null
+    apiKey = null,
+    emitAbortTerminalOnAbort = false
   } = options;
 
   let buffer = "";
@@ -69,11 +70,32 @@ export function createSSEStream(options = {}) {
 
   // Track Responses API event framing for same-format passthrough (codex)
   let currentOpenAIResponsesEvent = null;
+
+  const buildTranslatedTerminalBytes = () => {
+    if (!emitAbortTerminalOnAbort || mode !== STREAM_MODE.TRANSLATE || state?.anthropicTerminalSent) {
+      return null;
+    }
+
+    const flushed = translateResponse(targetFormat, sourceFormat, null, state);
+    if (!flushed?.length) return null;
+
+    const output = [];
+    for (const item of flushed) {
+      if (item === null || item === undefined) continue;
+      const formatted = formatSSE(item, sourceFormat);
+      reqLogger?.appendConvertedChunk?.(formatted);
+      output.push(formatted);
+      if (item.type === "message_stop") state.anthropicTerminalSent = true;
+    }
+
+    return output.length > 0 ? sharedEncoder.encode(output.join("")) : null;
+  };
+
   let openAIResponsesTerminalSeen = false;
   let openAIResponsesDoneSent = false;
   let streamDoneSent = false;  // track duplicate [DONE] across transform + flush
 
-  return new TransformStream({
+  const stream = new TransformStream({
     transform(chunk, controller) {
       if (!ttftAt) ttftAt = Date.now();
       const text = decoder.decode(chunk, { stream: true });
@@ -462,10 +484,15 @@ export function createSSEStream(options = {}) {
       }
     }
   });
+
+  if (emitAbortTerminalOnAbort) {
+    stream.emitAbortTerminal = buildTranslatedTerminalBytes;
+  }
+  return stream;
 }
 
-export function createSSETransformStreamWithLogger(targetFormat, sourceFormat, provider = null, reqLogger = null, toolNameMap = null, model = null, connectionId = null, body = null, onStreamComplete = null, apiKey = null) {
-  return createSSEStream({
+export function createSSETransformStreamWithLogger(targetFormat, sourceFormat, provider = null, reqLogger = null, toolNameMap = null, model = null, connectionId = null, body = null, onStreamComplete = null, apiKey = null, emitAbortTerminal = false) {
+  const stream = createSSEStream({
     mode: STREAM_MODE.TRANSLATE,
     targetFormat,
     sourceFormat,
@@ -476,8 +503,14 @@ export function createSSETransformStreamWithLogger(targetFormat, sourceFormat, p
     connectionId,
     body,
     onStreamComplete,
-    apiKey
+    apiKey,
+    emitAbortTerminalOnAbort: emitAbortTerminal
   });
+
+  // The disconnect-aware wrapper can bypass TransformStream.flush() on an
+  // upstream abort. Keep the callback on this stream so it can flush the same
+  // translator state instead of guessing from already-emitted bytes.
+  return stream;
 }
 
 export function createPassthroughStreamWithLogger(provider = null, reqLogger = null, model = null, connectionId = null, body = null, onStreamComplete = null, apiKey = null) {

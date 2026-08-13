@@ -233,6 +233,9 @@ export function initState(sourceFormat) {
     toolCalls: new Map(),
     finishReason: null,
     finishReasonSent: false,
+    // Client-facing terminal marker shared by the response translator hops.
+    // It makes EOF and abort finalization idempotent without inspecting bytes.
+    anthropicTerminalSent: false,
     usage: null,
     contentBlockIndex: -1
   };

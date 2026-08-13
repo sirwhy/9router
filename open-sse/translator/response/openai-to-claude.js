@@ -274,6 +274,10 @@ export function openaiToClaudeResponse(chunk, state) {
       usage: finalUsage
     });
     results.push({ type: "message_stop" });
+    // The same translator state is used by clean-EOF flush and abort
+    // finalization. Mark the client terminal at its source so either path is
+    // idempotent without inspecting serialized SSE bytes.
+    state.anthropicTerminalSent = true;
   }
 
   return results.length > 0 ? results : null;

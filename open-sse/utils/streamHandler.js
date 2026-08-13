@@ -99,13 +99,16 @@ export function createDisconnectAwareStream(transformStream, streamController, o
   const reader = transformStream.readable.getReader();
   const writer = transformStream.writable.getWriter();
   let terminalEmitted = false;
+  const terminalBuilder = onAbortTerminal || transformStream.emitAbortTerminal || null;
 
-  // Emit a synthesized terminal payload (e.g. Responses response.failed + [DONE]) once
+  // Emit a synthesized terminal payload once. Translation streams build this
+  // from their translator state; Responses passthrough keeps its existing
+  // response.failed + [DONE] callback.
   const emitTerminal = (controller) => {
-    if (terminalEmitted || !onAbortTerminal) return;
+    if (terminalEmitted || !terminalBuilder) return;
     terminalEmitted = true;
     try {
-      const bytes = onAbortTerminal();
+      const bytes = terminalBuilder();
       if (bytes) controller.enqueue(bytes);
     } catch { /* best-effort terminal */ }
   };
@@ -246,7 +249,7 @@ export function pipeWithDisconnect(providerResponse, transformStream, streamCont
     .pipeThrough(transformStream);
 
   return createDisconnectAwareStream(
-    { readable: transformedBody, writable: { getWriter: () => ({ abort: () => Promise.resolve() }) } },
+    { readable: transformedBody, writable: { getWriter: () => ({ abort: () => Promise.resolve() }) }, emitAbortTerminal: transformStream.emitAbortTerminal },
     wrappedController,
     onAbortTerminal
   );
