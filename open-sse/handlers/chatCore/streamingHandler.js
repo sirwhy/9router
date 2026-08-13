@@ -30,14 +30,12 @@ function buildTransformStream({ provider, sourceFormat, targetFormat, userAgent,
 
   if (needsCodexTranslation) {
     const codexTarget = CODEX_SOURCE_TO_TARGET[sourceFormat] || FORMATS.OPENAI;
-    // Only Anthropic Messages streams need the stateful Claude terminal. The
-    // Responses passthrough has its own response.failed/[DONE] handling.
-    const emitAbortTerminal = codexTarget === FORMATS.CLAUDE;
-    console.log(`[CODEXDBG] buildTransformStream codex-translation provider=${provider} src=${sourceFormat} tgt=${targetFormat} codexTarget=${codexTarget} emitAbortTerminal=${emitAbortTerminal}`);
+    // Codex can EOF mid-reasoning without a terminal; enable the stateful
+    // terminal builder for both translated client wire formats (Claude
+    // message_stop, OpenAI finish+[DONE]). Responses passthrough keeps its own.
+    const emitAbortTerminal = codexTarget === FORMATS.CLAUDE || codexTarget === FORMATS.OPENAI;
     return createSSETransformStreamWithLogger(FORMATS.OPENAI_RESPONSES, codexTarget, provider, reqLogger, toolNameMap, model, connectionId, body, onStreamComplete, apiKey, emitAbortTerminal);
   }
-
-  console.log(`[CODEXDBG] buildTransformStream NON-codex path provider=${provider} src=${sourceFormat} tgt=${targetFormat} isResponsesProvider=${isResponsesProvider} needsTranslation=${needsTranslation(targetFormat, sourceFormat)}`);
 
   if (needsTranslation(targetFormat, sourceFormat)) {
     return createSSETransformStreamWithLogger(targetFormat, sourceFormat, provider, reqLogger, toolNameMap, model, connectionId, body, onStreamComplete, apiKey);

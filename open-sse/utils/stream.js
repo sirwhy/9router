@@ -73,23 +73,35 @@ export function createSSEStream(options = {}) {
 
   const buildTranslatedTerminalBytes = () => {
     if (!emitAbortTerminalOnAbort || mode !== STREAM_MODE.TRANSLATE || state?.anthropicTerminalSent) {
-      console.log(`[CODEXDBG] buildTranslatedTerminalBytes GATE-NULL emitAbort=${emitAbortTerminalOnAbort} mode=${mode} alreadySent=${state?.anthropicTerminalSent} started=${state?.started} msgStartSent=${state?.messageStartSent}`);
       return null;
     }
 
+    // Flush the SAME translator state to synthesize the client's terminal:
+    //   Claude -> content_block_stop + message_delta + message_stop
+    //   OpenAI -> finish chunk (finish_reason:stop)  [+ data: [DONE] appended below]
     const flushed = translateResponse(targetFormat, sourceFormat, null, state);
-    console.log(`[CODEXDBG] buildTranslatedTerminalBytes flushed=${flushed?.length || 0} started=${state?.started} msgStartSent=${state?.messageStartSent}`);
-    if (!flushed?.length) return null;
-
     const output = [];
-    for (const item of flushed) {
+    let sawTerminal = false;
+    for (const item of (flushed || [])) {
       if (item === null || item === undefined) continue;
       const formatted = formatSSE(item, sourceFormat);
       reqLogger?.appendConvertedChunk?.(formatted);
       output.push(formatted);
-      if (item.type === "message_stop") state.anthropicTerminalSent = true;
+      // Terminal markers differ per client wire format.
+      if (item.type === "message_stop") sawTerminal = true;                       // Claude
+      if (item.choices?.[0]?.finish_reason) sawTerminal = true;                    // OpenAI
     }
 
+    // OpenAI clients expect the [DONE] sentinel to close the SSE stream; Claude
+    // does not. Append it once for the OpenAI wire format.
+    if (sourceFormat === FORMATS.OPENAI && output.length > 0 && !streamDoneSent) {
+      const doneOutput = "data: [DONE]\n\n";
+      reqLogger?.appendConvertedChunk?.(doneOutput);
+      output.push(doneOutput);
+      streamDoneSent = true;
+    }
+
+    if (sawTerminal) state.anthropicTerminalSent = true;   // idempotence latch (both formats)
     return output.length > 0 ? sharedEncoder.encode(output.join("")) : null;
   };
 
