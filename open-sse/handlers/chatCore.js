@@ -53,6 +53,30 @@ export async function handleChatCore({ body, modelInfo, credentials, log, onCred
 
   const sourceFormat = sourceFormatOverride || detectFormat(body);
 
+  // [PAYDBG] structural fingerprint of codex requests to diagnose ResponseAborted.
+  // Logs message-shape ONLY (roles, counts, presence of tool/reasoning items),
+  // NOT message content. Temporary — removed after diagnosis.
+  try {
+    if (provider === "codex" || model?.includes("gpt-5.6") || model?.startsWith("cx/")) {
+      const msgs = Array.isArray(body?.messages) ? body.messages : [];
+      const roleSeq = msgs.map(m => (m.role || "?")[0]).join("");
+      const roleCounts = {};
+      let toolCallMsgs = 0, toolResultMsgs = 0, reasoningItems = 0, nullContent = 0, arrContent = 0;
+      for (const m of msgs) {
+        roleCounts[m.role] = (roleCounts[m.role] || 0) + 1;
+        if (Array.isArray(m.tool_calls) && m.tool_calls.length) toolCallMsgs++;
+        if (m.role === "tool") toolResultMsgs++;
+        if (m.content === null || m.content === undefined) nullContent++;
+        if (Array.isArray(m.content)) {
+          arrContent++;
+          for (const p of m.content) if (p?.type && /reasoning|thinking/i.test(p.type)) reasoningItems++;
+        }
+      }
+      const approxChars = (() => { try { return JSON.stringify(body).length; } catch { return -1; } })();
+      console.log(`[PAYDBG] codex req msgs=${msgs.length} roles=${JSON.stringify(roleCounts)} seq=${roleSeq.slice(0,60)} toolCallMsgs=${toolCallMsgs} toolResultMsgs=${toolResultMsgs} arrContent=${arrContent} reasoningItems=${reasoningItems} nullContent=${nullContent} tools=${(body?.tools || []).length} stream=${body?.stream} effort=${body?.reasoning_effort || "-"} approxChars=${approxChars}`);
+    }
+  } catch { /* noop */ }
+
   // Check for bypass patterns (warmup, skip, cc naming)
   const bypassResponse = handleBypassRequest(body, model, userAgent, ccFilterNaming);
   if (bypassResponse) return bypassResponse;
