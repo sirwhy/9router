@@ -125,6 +125,11 @@ export function createDisconnectAwareStream(transformStream, streamController, o
         const { done, value } = await reader.read();
 
         if (done) {
+          // Clean EOF. Codex/cx can close mid-reasoning here (done=true, NOT the
+          // catch branch) without the transform flush() emitting the client
+          // terminal — so synthesize it. Idempotent: the stateful builder returns
+          // null once anthropicTerminalSent is set, so success paths add nothing.
+          emitTerminal(controller);
           streamController.handleComplete();
           controller.close();
           return;
