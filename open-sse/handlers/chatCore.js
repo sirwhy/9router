@@ -53,12 +53,6 @@ export async function handleChatCore({ body, modelInfo, credentials, log, onCred
 
   const sourceFormat = sourceFormatOverride || detectFormat(body);
 
-  // [REQDBG] one-line request fingerprint to disambiguate OMP wire format vs the
-  // internal "Anthropic" error label. Temporary — removed after diagnosis.
-  try {
-    console.log(`[REQDBG] provider=${provider} model=${model} sourceFormat=${sourceFormat} endpoint=${clientRawRequest?.endpoint || "?"} ua=${(userAgent || "").slice(0, 40)} stream=${body?.stream} hasThinking=${!!body?.thinking} reasoningEffort=${body?.reasoning_effort || "-"} override=${sourceFormatOverride || "-"}`);
-  } catch { /* noop */ }
-
   // Check for bypass patterns (warmup, skip, cc naming)
   const bypassResponse = handleBypassRequest(body, model, userAgent, ccFilterNaming);
   if (bypassResponse) return bypassResponse;

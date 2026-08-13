@@ -267,7 +267,14 @@ export function createSSEStream(options = {}) {
             sseEmittedCount++;
           }
 
-          if (keepsOpenAIResponsesFormat && !streamDoneSent) {
+          // Forward the [DONE] sentinel to any OpenAI-wire client, not just the
+          // Responses passthrough. Codex (Responses upstream) translated INTO the
+          // OpenAI chat format (sourceFormat=OPENAI) still needs [DONE] to close
+          // the SSE stream — without it OMP hangs / errors. Gemini-family clients
+          // reject the sentinel, so exclude them.
+          const isGeminiFamily = sourceFormat === FORMATS.ANTIGRAVITY || sourceFormat === FORMATS.GEMINI || sourceFormat === FORMATS.GEMINI_CLI || sourceFormat === FORMATS.VERTEX;
+          const clientWantsOpenAIDone = keepsOpenAIResponsesFormat || sourceFormat === FORMATS.OPENAI;
+          if (clientWantsOpenAIDone && !isGeminiFamily && !streamDoneSent) {
             const doneOutput = "data: [DONE]\n\n";
             reqLogger?.appendConvertedChunk?.(doneOutput);
             controller.enqueue(sharedEncoder.encode(doneOutput));
@@ -475,6 +482,20 @@ export function createSSEStream(options = {}) {
           controller.enqueue(sharedEncoder.encode(doneOutput));
           openAIResponsesDoneSent = true;
           streamDoneSent = true;
+        }
+
+        // OpenAI-wire clients (incl. codex Responses translated INTO OpenAI chat,
+        // sourceFormat=OPENAI) need the [DONE] sentinel on clean flush too — the
+        // transform loop only forwards it on an explicit parsed.done line, which a
+        // buffered/aborted upstream may never produce. Gemini-family rejects it.
+        {
+          const isGeminiFamily = sourceFormat === FORMATS.ANTIGRAVITY || sourceFormat === FORMATS.GEMINI || sourceFormat === FORMATS.GEMINI_CLI || sourceFormat === FORMATS.VERTEX;
+          if (sourceFormat === FORMATS.OPENAI && !isGeminiFamily && !streamDoneSent) {
+            const doneOutput = "data: [DONE]\n\n";
+            reqLogger?.appendConvertedChunk?.(doneOutput);
+            controller.enqueue(sharedEncoder.encode(doneOutput));
+            streamDoneSent = true;
+          }
         }
 
         if (!hasValidUsage(state?.usage) && totalContentLength > 0) {
