@@ -105,12 +105,13 @@ export function createDisconnectAwareStream(transformStream, streamController, o
   // from their translator state; Responses passthrough keeps its existing
   // response.failed + [DONE] callback.
   const emitTerminal = (controller) => {
-    if (terminalEmitted || !terminalBuilder) return;
+    if (terminalEmitted || !terminalBuilder) { if (!terminalBuilder) console.log(`[CODEXDBG] emitTerminal SKIP no-builder (onAbort=${!!onAbortTerminal} streamBuilder=${!!transformStream.emitAbortTerminal})`); return; }
     terminalEmitted = true;
     try {
       const bytes = terminalBuilder();
+      console.log(`[CODEXDBG] emitTerminal FIRED bytes=${bytes ? bytes.length : 'null'}`);
       if (bytes) controller.enqueue(bytes);
-    } catch { /* best-effort terminal */ }
+    } catch (e) { console.log(`[CODEXDBG] emitTerminal ERROR ${e?.message}`); }
   };
 
   return new ReadableStream({
@@ -129,6 +130,7 @@ export function createDisconnectAwareStream(transformStream, streamController, o
           // catch branch) without the transform flush() emitting the client
           // terminal — so synthesize it. Idempotent: the stateful builder returns
           // null once anthropicTerminalSent is set, so success paths add nothing.
+          console.log(`[CODEXDBG] pull done=true (clean EOF) — calling emitTerminal, builder=${!!terminalBuilder}`);
           emitTerminal(controller);
           streamController.handleComplete();
           controller.close();

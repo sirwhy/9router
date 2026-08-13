@@ -73,10 +73,12 @@ export function createSSEStream(options = {}) {
 
   const buildTranslatedTerminalBytes = () => {
     if (!emitAbortTerminalOnAbort || mode !== STREAM_MODE.TRANSLATE || state?.anthropicTerminalSent) {
+      console.log(`[CODEXDBG] buildTranslatedTerminalBytes GATE-NULL emitAbort=${emitAbortTerminalOnAbort} mode=${mode} alreadySent=${state?.anthropicTerminalSent} started=${state?.started} msgStartSent=${state?.messageStartSent}`);
       return null;
     }
 
     const flushed = translateResponse(targetFormat, sourceFormat, null, state);
+    console.log(`[CODEXDBG] buildTranslatedTerminalBytes flushed=${flushed?.length || 0} started=${state?.started} msgStartSent=${state?.messageStartSent}`);
     if (!flushed?.length) return null;
 
     const output = [];
