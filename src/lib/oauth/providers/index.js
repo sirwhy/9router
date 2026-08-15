@@ -28,6 +28,7 @@ import trae from "./trae.js";
 import windsurf from "./windsurf.js";
 import zed from "./zed.js";
 import keelcode from "./keelcode.js";
+import zai from "./zai.js";
 
 // Provider configurations
 const PROVIDERS = {
@@ -55,6 +56,7 @@ const PROVIDERS = {
   windsurf,
   zed,
   keelcode,
+  zai,
 };
 
 export { PROVIDERS };

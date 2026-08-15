@@ -118,6 +118,7 @@ import p113 from "./morph.js";
 import p115 from "./poolside.js";
 import p116 from "./agentrouter.js";
 import p117 from "./keelcode.js";
+import p118 from "./zai.js";
 
 export default [
   p0,
@@ -237,4 +238,5 @@ export default [
   p115,
   p116,
   p117,
+  p118,
 ];
