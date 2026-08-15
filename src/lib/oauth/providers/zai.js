@@ -7,35 +7,7 @@ const config = {
   clientId: "client_P8X5CMWmlaRO9gyO-KSqtg",
   authorizeUrl: "https://chat.z.ai/api/oauth/authorize",
   tokenUrl: "https://zcode.z.ai/api/v1/oauth/token",
-  businessLoginUrl: "https://api.z.ai/api/auth/z/login",
 };
-
-// Best-effort resolve of the real business API key from the OAuth access token.
-// The desktop app calls this to refresh the usable key; if it fails we simply
-// fall back to the OAuth access_token, so this must never hard-fail the login.
-async function resolveBusinessToken(oauthAccessToken) {
-  try {
-    const response = await fetch(config.businessLoginUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
-      body: JSON.stringify({ token: oauthAccessToken }),
-    });
-    if (!response.ok) return null;
-    const resp = await response.json();
-    const ok = resp?.code === 0 || resp?.code === 200;
-    const accessToken = resp?.data?.access_token;
-    if (!ok || !accessToken) return null;
-    return {
-      access_token: accessToken,
-      expires_in: resp.data.expires_in || null,
-    };
-  } catch {
-    return null;
-  }
-}
 
 const zai = {
   config,
@@ -77,17 +49,16 @@ const zai = {
     if (!data.token) {
       throw new Error("ZAI token exchange response missing data.token");
     }
-    if (!data.zai?.access_token) {
-      throw new Error("ZAI token exchange response missing data.zai.access_token");
-    }
 
-    // Best-effort: resolve the real business API key (refreshes the usable token).
-    const resolved = await resolveBusinessToken(data.zai.access_token);
-
+    // The Start Plan (free GLM-5.3 tier) authenticates against the ZCode-plan
+    // proxy (zcode.z.ai/api/v1/zcode-plan/*) using the zcode JWT (data.token)
+    // as a Bearer token. The api.z.ai business-login path (z/login) belongs to
+    // the paid API-Key / Coding-Plan families and is NOT used by the Start
+    // Plan, so we do not resolve a business token here.
     return {
-      access_token: resolved?.access_token || data.zai.access_token,
+      access_token: data.token,
       id_token: data.token,
-      expires_in: resolved?.expires_in || data.expires_in || null,
+      expires_in: data.expires_in || null,
       user: data.user || null,
     };
   },
