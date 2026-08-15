@@ -21,10 +21,17 @@ export default {
   // Start Plan (free GLM-5.3 tier) runs on the ZCode-plan proxy, authenticated
   // with the zcode JWT (data.token) as a Bearer token — NOT the api.z.ai
   // API-Key/Coding-Plan endpoints (those return 1113 "no resource package").
+  //
+  // z.ai gates every zcode-plan model request behind an Aliyun Captcha 2.0
+  // (scene 11xygtvd) via the X-Aliyun-Captcha-Verify-Param header. 9router runs
+  // on Railway (no headless browser), so it cannot solve the captcha itself.
+  // Instead we route through a captcha-injecting reverse proxy on the VPS
+  // (zai-captcha.eemaill.codes) that solves the TRACELESS captcha fresh per
+  // request and forwards to zcode.z.ai from the same IP. The proxy mirrors the
+  // real upstream path, so the Bearer JWT + X-ZCode-Agent header still apply.
   transport: {
-    baseUrl: "https://zcode.z.ai/api/v1/zcode-plan/anthropic/v1/messages",
+    baseUrl: "https://zai-captcha.eemaill.codes/api/v1/zcode-plan/anthropic/v1/messages",
     format: "claude",
-    urlSuffix: "?beta=true",
     headers: { ...CLAUDE_API_HEADERS, "X-ZCode-Agent": "glm" },
     auth: {
       combined: true,
