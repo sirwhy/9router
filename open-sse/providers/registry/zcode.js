@@ -20,6 +20,7 @@ export default {
     baseUrl: "https://zcode.eemaill.codes/v1/messages",
     format: "claude",
     auth: {
+      combined: true,
       header: "Authorization",
       scheme: "bearer",
     },
