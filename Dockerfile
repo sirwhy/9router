@@ -1,5 +1,6 @@
 # syntax=docker/dockerfile:1.7
 ARG NODE_IMAGE=node:22-alpine
+ARG CACHE_BUST=1
 FROM ${NODE_IMAGE} AS base
 WORKDIR /app
 
@@ -11,6 +12,7 @@ COPY package.json ./
 RUN npm install
 
 COPY . ./
+RUN echo "${CACHE_BUST}" > /tmp/cache-bust
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 
