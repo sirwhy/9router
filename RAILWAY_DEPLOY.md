@@ -184,6 +184,75 @@ Kalau balasannya berisi `choices` — semuanya sudah benar.
 
 ---
 
+## 12. Mengulang gratis: rotasi akun Railway (khusus 9Router)
+
+Dengan kuota percobaan Railway, service biasanya bertahan sekitar **1 bulan** lalu berhenti.
+Untuk melanjutkan **tanpa membayar**, alurnya begini — dan **bagian A wajib dikerjakan lebih awal**,
+karena begitu service berhenti kamu tidak bisa lagi mengambil datanya dengan mudah.
+
+### A. Selagi service masih hidup (lakukan sejak awal, jangan menunggu)
+
+Seluruh state-mu ada di **`/app/data`**:
+
+```text
+/app/data/
+├── db/
+│   ├── data.sqlite     # database utama (akun, provider, API key, konfigurasi)
+│   └── backups/        # backup keamanan saat migrasi skema — BUKAN backup harian
+└── ...                 # sertifikat, log, konfigurasi runtime
+```
+
+> Perhatikan: folder `backups/` itu **hanya** dibuat saat aplikasi mengubah skema database.
+> Dia **bukan** backup harian otomatis. Jadi **salinan rutin tetap tanggung jawabmu**.
+
+Amankan isi `/app/data` dengan salah satu cara berikut (tergantung fitur plan Railway-mu):
+
+1. **Lewat access shell** kalau tersedia (Railway CLI: `railway login` → `railway link` → `railway ssh`):
+   ```bash
+   tar czf /tmp/9router-data.tgz -C /app/data .
+   # lalu unduh berkas itu (atau tampilkan base64 kalau ukurannya kecil)
+   ```
+2. **Lewat fitur Volume/Backup di dashboard Railway**, kalau plan-mu menyediakannya
+   (buka service → Volume → cari opsi ekspor/backup).
+3. **Kalau tidak ada akses apa pun**: mulai sekarang biasakan **menyimpan konfigurasi penting di
+   catatanmu sendiri** (daftar provider + API key) — itu bagian tersulit untuk diingat ulang.
+
+Simpan salinan itu **di luar Railway** (Google Drive, HP, dsb). Jadwalkan tiap 1–2 minggu.
+
+### B. Kalau kuota sudah habis
+
+1. Buat **akun Railway baru** (email lain) → **New Project → Deploy from GitHub repo** → pilih fork-mu
+2. Isi **environment variables yang sama** (langkah 4) — simpan daftarnya sejak awal agar tinggal tempel
+3. Pasang **Volume baru** di mount path `/app/data` → klik **Add** → **Redeploy**
+4. **Generate Domain** baru → perbarui `BASE_URL` + `NEXT_PUBLIC_BASE_URL` + `CLOUD_URL` +
+   `NEXT_PUBLIC_CLOUD_URL` ke domain baru → **Redeploy** (wajib, karena `NEXT_PUBLIC_*` ditanam saat build)
+5. Login dengan `INITIAL_PASSWORD` yang sama seperti sebelumnya
+6. Kalau kamu punya salinan data dari langkah A: kembalikan isinya ke `/app/data`
+   (dengan cara yang sama seperti mengekspornya) → **Redeploy** → semua konfigurasi kembali
+
+### C. Kalau data tidak sempat disalin
+
+Tidak fatal untuk pemakaian pribadi: isi ulang provider + API key dari dashboard (sekitar 10 menit).
+
+> ⚠️ **Untuk operator yang menjual akses:** akun/pelanggan yang tersimpan di database **tidak bisa
+> dipulihkan** kalau tidak ada salinan. Jadi **jangan pernah** menunggu kuota hampir habis —
+> biasakan ekspor rutin, dan simpan salinannya di dua tempat berbeda.
+
+### D. Ringkasan siklus (1 bulan sekali)
+
+```text
+hari 1      : deploy + isi env + volume + domain + BASE_URL  → jalan
+hari 1-30   : pakai seperti biasa; EKSPOR /app/data tiap 1-2 minggu
+kuota habis : service berhenti (data di volume lama masih ada, tapi sulit diambil)
+hari 31     : akun Railway baru → deploy repo yang sama → volume baru → env sama
+              → masukkan kembali salinan data → domain baru → perbarui 4 variabel URL → redeploy
+```
+
+> Kalau kamu ingin berhenti mengulang siklus ini, jalur **VPS sendiri** (bagian 10) memberi biaya
+> tetap, data sepenuhnya di tanganmu, dan tidak ada rotasi akun.
+
+---
+
 ## Checklist singkat
 
 - [ ] Akun GitHub & akun Railway siap
@@ -193,6 +262,7 @@ Kalau balasannya berisi `choices` — semuanya sudah benar.
 - [ ] Domain sudah di-generate + 4 variabel `*_URL` menunjuk domain itu + redeploy
 - [ ] Password dashboard sudah diganti
 - [ ] Provider sudah ditambahkan + API key sudah disalin
+- [ ] (Pemakai kuota gratis) salinan `/app/data` sudah disimpan di luar Railway + daftar environment variables dicatat
 
 ---
 
