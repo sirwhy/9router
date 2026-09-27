@@ -1,95 +1,217 @@
-# 🚀 Deploy 9Router ke Railway
+# 🚀 Cara Deploy 9Router di Railway — Panduan Lengkap untuk Pengguna
 
-## Cara Deploy (Step by Step)
+Panduan ini mengantar kamu dari **nol** sampai punya **dashboard 9Router yang jalan sendiri**
+plus **endpoint API bergaya OpenAI** (`/v1`) yang bisa dipakai di aplikasi apa pun.
 
-### 1. Fork repo ini
-Fork https://github.com/decolua/9router ke akun GitHub kamu sendiri, lalu upload/replace file-file berikut dari zip ini:
-- `Dockerfile`
-- `next.config.mjs`
-- `src/lib/db/adapters/betterSqliteAdapter.js`
-
-### 2. Buat project di Railway
-1. Buka https://railway.app → **New Project**
-2. Pilih **Deploy from GitHub repo**
-3. Pilih fork repo kamu
-4. Railway akan otomatis detect Dockerfile
-
-### 3. Konfigurasi Build & Start
-
-Di Railway → Settings → **Build**:
-- **Builder:** `Dockerfile` (bukan Nixpacks)
-- **Dockerfile Path:** `./Dockerfile`
-- **Build Command:** *(kosongkan, sudah ada di Dockerfile)*
-
-Di Railway → Settings → **Deploy**:
-- **Start Command:** *(kosongkan, sudah pakai ENTRYPOINT + CMD di Dockerfile)*
-
-### 4. Set Environment Variables
-
-Di Railway → **Variables**, tambahkan variable berikut:
-
-| Variable | Nilai | Keterangan |
-|---|---|---|
-| `PORT` | `20128` | **Wajib** — port app |
-| `DATA_DIR` | `/app/data` | **Wajib** — lokasi database |
-| `HOSTNAME` | `0.0.0.0` | **Wajib** — agar Railway bisa akses |
-| `NODE_ENV` | `production` | **Wajib** |
-| `NEXT_TELEMETRY_DISABLED` | `1` | Matikan telemetry Next.js |
-| `INITIAL_PASSWORD` | `password_kamu` | Password login dashboard (default: `123456`) |
-| `JWT_SECRET` | *(random string panjang)* | Secret untuk JWT token session. Bisa generate dengan: `openssl rand -hex 32` |
-| `AUTH_COOKIE_SECURE` | `true` | Set `true` karena Railway pakai HTTPS |
-
-**Variable opsional:**
-
-| Variable | Nilai | Keterangan |
-|---|---|---|
-| `DEBUG` | `true` | Aktifkan debug logs |
-| `ENABLE_REQUEST_LOGS` | `true` | Log semua request masuk |
-| `HTTP_PROXY` | `http://...` | Jika perlu proxy |
-| `HTTPS_PROXY` | `http://...` | Jika perlu proxy |
-
-### 5. Set Volume (Persistent Storage)
-
-Agar data tidak hilang saat redeploy:
-
-1. Railway → project kamu → **+ Add Volume**
-2. Mount path: `/app/data`
-3. Klik **Add**
-
-Tanpa volume, semua data (provider config, API keys, dll) akan hilang setiap deploy ulang.
-
-### 6. Set Port
-
-Railway → Settings → **Networking**:
-- **Port:** `20128`
-- Klik **Generate Domain** untuk dapat URL publik
+**Waktu:** 15–30 menit · **Modal:** akun GitHub + akun Railway + HP/laptop
 
 ---
 
-## Setelah Deploy
+## 1. Apa yang akan kamu dapat
 
-1. Buka URL yang diberikan Railway (contoh: `https://9router-xxx.up.railway.app`)
-2. Login dengan password yang kamu set di `INITIAL_PASSWORD` (default: `123456`)
-3. **Ganti password segera** di Dashboard → Settings
-4. Tambahkan provider AI di Dashboard → Providers
-5. Copy API key dari dashboard, gunakan di tool kamu:
-   ```
-   Endpoint: https://9router-xxx.up.railway.app/v1
-   API Key:  [copy dari dashboard]
-   ```
+- Dashboard web pribadi (login dengan password yang kamu tentukan sendiri)
+- Endpoint `https://<domain-kamu>/v1` — kompatibel dengan OpenAI, jadi bisa dipakai di aplikasi atau
+  agent apa pun
+- Database & konfigurasi tersimpan permanen di server (tidak hilang saat update)
 
 ---
 
-## Troubleshooting
+## 2. Ambil kodenya (fork)
 
-**Build gagal `package.json not found`**
-→ Pastikan kamu sudah fork repo dan upload semua file yang diperlukan (bukan hanya Dockerfile).
+1. Buka repo ini di GitHub → tombol **Fork** (kanan atas) → **Create fork**
+2. Sekarang kamu punya salinan sendiri di akun GitHub-mu — semua perubahan nanti di repo itu
 
-**App jalan tapi tidak bisa login**
-→ Cek `INITIAL_PASSWORD` di Variables, pastikan tidak ada spasi.
+> Repo ini **sudah lengkap**: ada `Dockerfile`, `custom-server.js`, `start.sh`, dan adapter SQLite-nya.
+> Kamu **tidak perlu** meng-upload berkas apa pun secara manual.
 
-**Data hilang setelah redeploy**
-→ Tambahkan Volume di `/app/data` (lihat langkah 5).
+---
 
-**Port tidak bisa diakses**
-→ Pastikan `PORT=20128` dan `HOSTNAME=0.0.0.0` sudah diset.
+## 3. Buat project di Railway
+
+1. Buka **railway.app** → **New Project**
+2. Pilih **Deploy from GitHub repo** → sambungkan akun GitHub-mu kalau diminta
+3. Pilih repo hasil fork tadi
+4. Railway akan mulai build. Kalau dia salah mendeteksi jenis build:
+   **Settings → Build → Builder: pilih `Dockerfile`** (jangan Nixpacks)
+5. **Settings → Deploy → Start Command: KOSONGKAN** (Dockerfile sudah mengatur perintah jalannya)
+6. **Jangan menaikkan jumlah replika (Replicas)** — tetap **1**
+   (aplikasi ini memakai database SQLite; dua replika = dua penulis ke satu berkas)
+
+---
+
+## 4. Isi Environment Variables
+
+Masuk **Variables** → tambahkan satu per satu.
+
+### Wajib
+
+| Nama | Nilai |
+|---|---|
+| `PORT` | `20128` |
+| `HOSTNAME` | `0.0.0.0` |
+| `NODE_ENV` | `production` |
+| `DATA_DIR` | `/app/data` |
+| `JWT_SECRET` | string acak panjang — `openssl rand -hex 32` |
+| `INITIAL_PASSWORD` | **password login dashboard-mu** (tentukan sendiri) |
+| `API_KEY_SECRET` | string acak panjang — `openssl rand -hex 32` |
+| `MACHINE_ID_SALT` | string acak — `openssl rand -hex 16` |
+| `AUTH_COOKIE_SECURE` | `true` |
+
+### Disarankan
+
+| Nama | Nilai |
+|---|---|
+| `REQUIRE_API_KEY` | `true` (semua endpoint wajib API key, lebih aman) |
+| `OBSERVABILITY_ENABLED` | `true` |
+| `ENABLE_REQUEST_LOGS` | `false` (nyalakan `true` hanya saat menelusuri masalah) |
+| `NEXT_TELEMETRY_DISABLED` | `1` |
+
+> Bingung membuat string acak? Di Termux/Linux: `openssl rand -hex 32`. Kalau tidak ada, ketik saja
+> kalimat acak **panjang** (30+ karakter) yang tidak kamu pakai di tempat lain — yang penting
+> **jangan pendek** dan **jangan dibagikan**.
+
+### Setelah deploy pertama — langkah yang paling sering terlewat ⚠️
+
+Domainmu baru ada setelah deploy pertama. Jadi:
+
+1. Buka **Settings → Networking → Generate Domain** → salin URL-nya
+   (mis. `https://9router-xxx.up.railway.app`)
+2. Kembali ke **Variables**, tambahkan **empat** ini dengan URL tersebut:
+   ```
+   BASE_URL=https://9router-xxx.up.railway.app
+   NEXT_PUBLIC_BASE_URL=https://9router-xxx.up.railway.app
+   CLOUD_URL=https://9router-xxx.up.railway.app
+   NEXT_PUBLIC_CLOUD_URL=https://9router-xxx.up.railway.app
+   ```
+3. **Redeploy** — wajib, karena nilai `NEXT_PUBLIC_*` ikut ditanam saat build
+   (kalau tidak, perubahan itu tidak berpengaruh)
+
+---
+
+## 5. Pasang penyimpanan permanen (Volume)
+
+Tanpa ini, **semua data hilang** setiap kali deploy ulang (provider, API key, akun, database).
+
+1. Di project Railway-mu → **+ Add Volume** (atau **Create → Volume**)
+2. **Mount path:** `/app/data` — harus persis ini
+3. Klik **Add** → lalu **redeploy**
+
+> Izin berkas sudah diurus otomatis oleh image-nya — kamu **tidak perlu** mengubah permission manual.
+
+---
+
+## 6. Set port & buka domain
+
+1. **Settings → Networking** → pastikan **port target = `20128`**
+   (harus sama dengan nilai `PORT` di langkah 4)
+2. Klik **Generate Domain** → kamu dapat URL publik
+3. Buka URL itu di browser → halaman login muncul
+
+---
+
+## 7. Login & pakai
+
+1. **Login** dengan `INITIAL_PASSWORD` yang kamu isi di langkah 4
+2. **Segera ganti password** dari dalam dashboard (menu Settings/Profil)
+3. **Providers** → tambahkan penyedia AI-mu (tempel API key/akun sesuai yang kamu punya)
+4. **Endpoint / API Keys** → salin API key milikmu
+
+**Pakai di aplikasi mana pun (OpenAI-compatible):**
+
+```
+Base URL : https://<domain-railway-kamu>/v1
+API Key  : <key dari dashboard>
+Model    : <nama model yang kamu aktifkan>
+```
+
+Contoh uji cepat dari Termux:
+
+```bash
+curl -s https://<domain-railway-kamu>/v1/chat/completions \
+  -H "Authorization: Bearer <API_KEY_KAMU>" \
+  -H "Content-Type: application/json" \
+  -d '{"model":"<nama-model>","messages":[{"role":"user","content":"halo"}],"max_tokens":16}'
+```
+
+Kalau balasannya berisi `choices` — semuanya sudah benar.
+
+---
+
+## 8. Hal yang wajib dihindari
+
+| Jangan | Alasannya |
+|---|---|
+| Menambah replika / menjalankan 2 instance dengan volume yang sama | SQLite tidak untuk dua penulis bersamaan — data bisa rusak |
+| Commit berkas `.env` ke GitHub | rahasia bisa bocor |
+| Memakai `JWT_SECRET`/password bawaan | gampang ditebak |
+| Menghapus Volume untuk "membersihkan" | seluruh data pelanggan/config ikut hilang |
+| Mengganti `NEXT_PUBLIC_*` tanpa redeploy | nilainya ditanam saat build — perubahan tidak akan terpakai |
+
+---
+
+## 9. Kalau ada masalah
+
+| Gejala | Solusi |
+|---|---|
+| Build gagal menyebut `better-sqlite3` / `node-gyp` | Builder bukan Dockerfile → **Settings → Build → Builder = Dockerfile** |
+| Build mati / kehabisan memori di tengah jalan | build Next.js memang berat → **Redeploy**; kalau sering, naikkan memori builder di plan Railway |
+| Bisa buka domain tapi tidak bisa login | pastikan `INITIAL_PASSWORD` terisi tanpa spasi dan `JWT_SECRET` terisi |
+| Data hilang setiap deploy ulang | Volume belum terpasang di **`/app/data`** |
+| Halaman jalan, tapi API/sinkron gagal | `BASE_URL` + `NEXT_PUBLIC_BASE_URL` belum menunjuk ke domain ini (lalu redeploy) |
+| Login berhasil sebentar lalu keluar sendiri | `AUTH_COOKIE_SECURE` harus `true` (Railway HTTPS) |
+| Perubahan setting tidak berpengaruh | redeploy dengan **Clear build cache** |
+
+---
+
+## 10. Soal biaya & keberlanjutan (baca ini)
+
+- Railway memberi **kuota percobaan**. Kalau kuota itu habis, **service-mu akan berhenti** sampai kamu
+  upgrade ke plan berbayar. Jadi **jangan andalkan kuota percobaan untuk produksi jangka panjang**.
+- Data tetap aman selama **Volume** tetap ada — kalau service berhenti, kamu bisa menyalakannya lagi
+  tanpa kehilangan konfigurasi (tapi tetap: **jangan hapus Volume**).
+- Kalau kamu ingin biaya tetap dan kontrol penuh, jalur lanjutan yang umum adalah
+  **VPS sendiri + Docker Compose + Cloudflare Tunnel** (repo ini sudah menyertakan
+  `docker-compose.yml`). Tutorial Railway ini yang paling cepat untuk mulai.
+
+---
+
+## 11. Update versi baru
+
+1. Sinkronkan fork-mu dengan repo sumber (GitHub → **Sync fork**), atau tarik perubahan ke salinanmu
+2. Railway akan mendeteksi push & **auto-deploy**
+3. Kalau terasa build-nya "tidak ikut berubah" → **Redeploy → Clear build cache**
+4. **Sebelum update besar:** unduh dulu salinan isi `/app/data` (seluruh state-mu ada di situ)
+
+---
+
+## Checklist singkat
+
+- [ ] Akun GitHub & akun Railway siap
+- [ ] Repo sudah di-fork
+- [ ] 9 Variables wajib terisi (termasuk 2 string acak panjang)
+- [ ] Volume terpasang di `/app/data`
+- [ ] Domain sudah di-generate + 4 variabel `*_URL` menunjuk domain itu + redeploy
+- [ ] Password dashboard sudah diganti
+- [ ] Provider sudah ditambahkan + API key sudah disalin
+
+---
+
+## Lampiran: `railway.toml` (opsional, supaya setelan deploy tersimpan di repo)
+
+Tambahkan berkas ini di root repo, agar setelan builder tidak perlu diatur ulang dari UI:
+
+```toml
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+# Start Command dikosongkan: pakai ENTRYPOINT/CMD dari Dockerfile.
+startCommand = ""
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10
+```
+
+> `healthcheckPath` sengaja tidak dipakai: Railway menghitung hanya HTTP **200**, sedangkan halaman
+> dashboard bisa membalas redirect/login — salah setel di sini membuat deploy dinyatakan gagal
+> padahal aplikasinya berjalan normal.
